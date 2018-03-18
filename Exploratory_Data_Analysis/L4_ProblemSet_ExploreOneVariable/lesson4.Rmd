@@ -1,0 +1,34 @@
+---
+title: 'Lesson_4: Problem Set - Explore One Variable'
+author: "Greg Clunies"
+date: "3/18/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load data from ggplot package
+```{r}
+library(ggplot2)  #must load the ggplot package first
+data(diamonds)  #loads the diamonds data set since it comes with the ggplot package
+```
+
+## Q1
+```{r}
+summary(diamonds)
+str(diamonds)
+?diamonds
+```
+
+## Q2 - Histogram
+```{r}
+ggplot(data = diamonds, aes(x = price)) +
+  geom_histogram()
+```
+
+## Q3 - Describe Shape, Summary Stats
+```{r}
+summary(diamonds$price)
+```
+Data is right skewed and long tailed. There is a slight spike around the \$4500 price. Prices range from \$326 to $18823 (!!!). The median price is \$2401.
+
