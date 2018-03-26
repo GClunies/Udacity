@@ -9,7 +9,8 @@ editor_options:
 
 ## Set working directory
 ```{r}
-setwd("/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/Explore_One_Variable")
+# macbook path
+setwd("/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/L3_Explore_One_Variable")
 ```
 
 
@@ -74,7 +75,7 @@ ggplot(data = pf, aes(x = friend_count)) +
 ggplot(data = pf, aes(x = friend_count)) +
   geom_histogram(binwidth = 25) +
   scale_x_continuous(limits = c(0, 1000), breaks = seq(0,1000,50)) +
-  facet_wrap(~gender, ncol = 3)
+  facet_wrap(~gender)
 ```
 
 ## Ommitting NA observations
@@ -82,7 +83,7 @@ ggplot(data = pf, aes(x = friend_count)) +
 ggplot(data = subset(pf, !is.na(gender)), aes(x = friend_count)) +
   geom_histogram(binwidth = 25) +
   scale_x_continuous(limits = c(0, 1000), breaks = seq(0,1000,50)) +
-  facet_wrap(~gender, ncol = 3)
+  facet_wrap(~gender, ncol=2)
 ```
 
 ## Statistics 'by' gender
@@ -162,7 +163,7 @@ ggplot(data = subset(pf, !is.na(gender)), aes(x = gender, y = friend_count)) +
   geom_boxplot() + 
   scale_y_continuous(limits = c(0,1000))  # using scale_y_continuous() actually removes data BEFORE plotting the boxes
 
-# instead we should use coord_cartesion leayr
+# instead we should use coord_cartesion leyer
 ggplot(data = subset(pf, !is.na(gender)), aes(x = gender, y = friend_count)) +
   geom_boxplot() + 
   coord_cartesian(ylim = c(0,1000))  
