@@ -1,4 +1,9 @@
-Lesson 4
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+ Lesson 4
 ========================================================
 
 ***
@@ -6,13 +11,22 @@ Lesson 4
 ### Scatterplots and Perceived Audience Size
 Notes:
 
+```{r}
+setwd('/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/L5_Explore_Two_Variables')
+
+library(tidyverse)
+```
+
 ***
 
 ### Scatterplots
 Notes:
 
 ```{r Scatterplots}
+library(ggplot2)
+pf <- read.csv('pseudo_facebook.tsv', sep = '\t')
 
+qplot(x = age, y = friend_count, data = pf)
 ```
 
 ***
@@ -26,7 +40,9 @@ Response:
 Notes:
 
 ```{r ggplot Syntax}
-
+ggplot(data = pf, aes(x = age, y = friend_count)) +
+  geom_point(alpha = 1/20) + 
+  xlim(13, 90)
 ```
 
 ***
@@ -35,25 +51,36 @@ Notes:
 Notes:
 
 ```{r Overplotting}
-
+ggplot(data = pf, aes(x = age, y = friend_count)) +
+  geom_jitter(alpha = 1/20) + 
+  xlim(13, 90)
 ```
 
 #### What do you notice in the plot?
 Response:
-
+Jitter lets us distinguish each point more easily by adding in some "noise" to help set points apart.
 ***
 
 ### Coord_trans()
 Notes:
 
 ```{r Coord_trans()}
-
+ggplot(data = pf, aes(x = age, y = friend_count)) +
+  geom_point(alpha = 1/20) + 
+  xlim(13, 90) + 
+  coord_trans(y = 'sqrt')
 ```
+**NOTE:**
+geom_jitter will not work with coord_trans() ...need to look into this. Must use geom_point instead. See below code chunk to see how to add a "jitter" to geom_point() plots using the 'position = position_jitter()' argument (see below).
 
 #### Look up the documentation for coord_trans() and add a layer to the plot that transforms friend_count using the square root function. Create your plot!
 
+# Coords trans and jitter
 ```{r}
-
+ggplot(data = pf, aes(x = age, y = friend_count)) +
+  geom_point(alpha = 1/20, position = position_jitter(h = 0)) + 
+  xlim(13, 90) + 
+  coord_trans(y = 'sqrt')
 ```
 
 #### What do you notice?
@@ -64,7 +91,10 @@ Notes:
 Notes:
 
 ```{r Alpha and Jitter}
-
+ggplot(data = pf, aes(x = age, y = friendships_initiated)) +
+  geom_point(alpha = 1/20, position = position_jitter(h = 0)) + 
+  xlim(13, 90) +
+  coord_trans(y = 'sqrt')
 ```
 
 ***
@@ -78,13 +108,34 @@ Notes:
 Notes:
 
 ```{r Conditional Means}
+library(tidyverse)
 
+age_groups <- group_by(pf, age)
+pf.fc_by_age<- summarise(age_groups,
+          friend_count_mean = mean(friend_count),
+          friend_count_median = median(friend_count),
+          n = n())
+
+head(pf.fc_by_age)
+
+# OR, we can do the same thing using the pipe operator, %>%, which allows you to 'chain' functions toegther, one after the other
+
+pf.fc_by_age <- pf %>% 
+  group_by(age) %>% 
+  summarise(friend_count_mean = mean(friend_count),
+            friend_count_median = median(friend_count),
+            n = n()) %>% 
+  arrange(age)
+
+head(pf.fc_by_age, desc=True, 20)
 ```
 
 Create your plot!
 
 ```{r Conditional Means Plot}
-
+ggplot(data = pf.fc_by_age, aes(x = age, y = friend_count_mean)) +
+  geom_line() + 
+  scale_x_continuous(breaks = seq(10,90,10), limits = c(10,90))
 ```
 
 ***
@@ -93,7 +144,26 @@ Create your plot!
 Notes:
 
 ```{r Overlaying Summaries with Raw Data}
-
+ggplot(data = pf, aes(x = age, y = friend_count)) +
+  geom_point(alpha = 1/20,
+             position = position_jitter(h = 0),
+             color = 'orange') + 
+  coord_cartesian(xlim = c(13,70), ylim = c(0,1000)) +
+  geom_line(stat = 'summary', fun.y = mean) +
+  geom_line(stat = 'summary',
+            fun.y = quantile,
+            fun.args = list(probs = 0.1),
+            linetype = 2,
+            color = 'blue') +
+  geom_line(stat = 'summary',
+            fun.y = quantile,
+            fun.args = list(probs = 0.5),
+            color = 'blue') +
+  geom_line(stat = 'summary',
+            fun.y = quantile,
+            fun.args = list(probs = 0.9),
+            linetype = 2,
+            color = 'blue')
 ```
 
 #### What are some of your observations of the plot?
@@ -112,7 +182,11 @@ Notes:
 Notes:
 
 ```{r Correlation}
+cor.test(pf$age, pf$friend_count, method = 'pearson')
 
+# ALTERNATE CODE
+
+with(pf, cor.test(age, friend_count, method = 'pearson'))
 ```
 
 Look up the documentation for the cor.test function.
@@ -126,21 +200,43 @@ Response:
 Notes:
 
 ```{r Correlation on Subsets}
-with(                 , cor.test(age, friend_count))
+with(subset(pf, age <=70), cor.test(age, friend_count, method = 'pearson'))
 ```
+Genaeral rules for correlation coeff:
+abs(r) > 0.3 ---> slight significance
+abs(r) > 0.5 ---> moderate significance
+abs(r) > 0.7 ---> significant
+
+An acceptable value of significant may vary based on the field/application
 
 ***
 
 ### Correlation Methods
 Notes:
+Quick reference on correlation methods:
+http://www.statisticssolutions.com/correlation-pearson-kendall-spearman/
+```{r Correlation on Subsets}
+# Pearson r
+c1 <- with(subset(pf, age <=70), cor.test(age, friend_count, method = 'pearson'))
 
-***
+# Spearmen rho
+c2 <- with(subset(pf, age <=70), cor.test(age, friend_count, method = 'spearman'))
+
+# Kendall tau (NOTE: kendall take VERY LONG...minutes!!)
+c3 <- with(subset(pf, age <=70), cor.test(age, friend_count, method = 'kendall'))
+
+print('Pearson r: ', c1$estimate)
+print('Spearman rho: ', c2$estimate)
+print('Kendall tau: ', c3$estimate)
+```
 
 ## Create Scatterplots
 Notes:
 
 ```{r}
-
+ggplot(data = pf, aes(x = www_likes_received, y = likes_received)) +
+  geom_point(alpha = 1/10) +
+  coord_cartesian(xlim = c(0,1000), ylim = c(0,1000))
 ```
 
 ***
@@ -149,13 +245,17 @@ Notes:
 Notes:
 
 ```{r Strong Correlations}
-
+ggplot(data = pf, aes(x = www_likes_received, y = likes_received)) +
+  geom_point(alpha = 1/10) +
+  xlim(0, quantile(pf$www_likes_received, 0.95)) +
+  ylim(0, quantile(pf$likes_received, 0.95)) + 
+  geom_smooth(method = 'lm', color = 'red')
 ```
 
 What's the correlation betwen the two variables? Include the top 5% of values for the variable in the calculation and round to 3 decimal places.
 
 ```{r Correlation Calcuation}
-
+cor.test(pf$www_likes_received, pf$likes_received)
 ```
 
 Response:
@@ -173,12 +273,19 @@ Notes:
 ```{r More Caution With Correlation}
 install.packages('alr3')
 library(alr3)
+
+data(Mitchell)
+?Mitchell
+head(Mitchell)
+
+mf <- Mitchell
 ```
 
 Create your plot!
 
 ```{r Temp vs Month}
-
+ggplot(data = mf, aes(x = Month, y = Temp)) +
+  geom_point()
 ```
 
 ***
@@ -186,11 +293,13 @@ Create your plot!
 ### Noisy Scatterplots
 a. Take a guess for the correlation coefficient for the scatterplot.
 
+0
+
 b. What is the actual correlation of the two variables?
 (Round to the thousandths place)
 
 ```{r Noisy Scatterplots}
-
+cor.test(mf$Month, mf$Temp)
 ```
 
 ***
@@ -199,7 +308,9 @@ b. What is the actual correlation of the two variables?
 Notes:
 
 ```{r Making Sense of Data}
-
+ggplot(data = mf, aes(x = Month, y = Temp)) +
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0,range(mf$Month)[2],12))
 ```
 
 ***
@@ -208,6 +319,7 @@ Notes:
 
 What do you notice?
 Response:
+the cyclical signal in the temperature...indicative of seasonal trends in the soild temperature.
 
 Watch the solution video and check out the Instructor Notes!
 Notes:
@@ -218,7 +330,8 @@ Notes:
 Notes:
 
 ```{r Understanding Noise: Age to Age Months}
-
+pf$age_with_months = pf$age + (1 - pf$dob_month/12)
+print(pf$age_with_months)
 ```
 
 ***
@@ -226,12 +339,12 @@ Notes:
 ### Age with Months Means
 
 ```{r Age with Months Means}
-
-```
-
-Programming Assignment
-```{r Programming Assignment}
-
+pf.fc_by_age_months <- pf %>% 
+  group_by(age_with_months) %>% 
+  summarise(friend_count_mean = mean(friend_count),
+            friend_count_median = median(friend_count),
+            n = n()) %>% 
+  arrange(age_with_months)
 ```
 
 ***
@@ -239,7 +352,16 @@ Programming Assignment
 ### Noise in Conditional Means
 
 ```{r Noise in Conditional Means}
+pf.fc_by_age_months2 <- pf %>% 
+  subset(age_with_months < 71) %>% 
+  group_by(age_with_months) %>% 
+  summarise(friend_count_mean = mean(friend_count),
+            friend_count_median = median(friend_count),
+            n = n()) %>% 
+  arrange(age_with_months)
 
+ggplot(data = pf.fc_by_age_months2, aes(x = age_with_months, y = friend_count_mean)) +
+  geom_line()
 ```
 
 ***
