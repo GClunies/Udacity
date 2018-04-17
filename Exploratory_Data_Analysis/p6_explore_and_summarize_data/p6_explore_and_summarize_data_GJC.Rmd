@@ -1,0 +1,378 @@
+---
+title: 'Prosper Loan Data Exploration'
+author: "Greg Clunies"
+date: "3/18/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+========================================================
+
+> **Tip**: One of the requirements of this project is that your code follows
+good formatting techniques, including limiting your lines to 80 characters or
+less. If you're using RStudio, go into Preferences \> Code \> Display to set up
+a margin line to help you keep track of this guideline!
+
+# Introduction
+
+This report explores a data set containing 113,937 [Prosper](https://www.prosper.com/home/) 
+loans. Prosper specializes is peer-to-peer (P2P) lending, allowing everyday 
+people to both acquire and invest/fund loans in amounts ranging from \$2,000 to 
+$35,000. Prosper provides data to both potential borrowers and investors about 
+their loans, with borrowers focused on the rate they will get on the loan, and 
+investors focuesed on the estimated return on investment.
+
+The data set has 81 variables associated with each loan, such as: loan amount, 
+borrower rate (i.e., interest rate), loan status, borrower income, borrower
+employment status, borrower credit history, estimated return for investors, etc. 
+A description of each attribute in the loan dataset is provided [here](https://docs.google.com/spreadsheets/d/1gDyi_L4UvIrLTEC6Wri5nbaMmkGmLQBk-Yx3z0XDEtI/edit#gid=0).
+
+I will approach this analysis from the viewpoint of a potential investor. The 
+data set provides information on both outstanding and closed outloans, so 
+hopefully we can gain some insight on actual versus estimated return on 
+investment. Do prosper loans live up to the hype? 
+
+Let's start by setting up our workbook with the necessary packages, and loading
+in the dataset to get a sense of the variables available.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(tidyverse)
+library(lubridate)
+library(scales)
+
+setwd("/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/p6_explore_and_summarize_data")
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+loan <- read.csv("prosperLoanData.csv")
+
+# data shape, structure, etc. info
+dim(loan)
+str(loan)
+```
+
+Looks like the date variables were loaded as factors, let's convert to POSIXct for
+ease of use. This is where the [lubridate](http://lubridate.tidyverse.org/index.html) package comes in handy.
+
+```{r echo=FALSE}
+# convert the date attributes to POSIXct format to handle dates
+loan$ListingCreationDate <- ymd_hms(loan$ListingCreationDate)
+loan$ClosedDate <- ymd_hms(loan$ClosedDate)
+
+# drop HH:MM:SS data from creation date (not relevant to this analysis)
+loan$ListingCreationDate <- floor_date(loan$ListingCreationDate, unit = "day")
+
+min(loan$ListingCreationDate)
+max(loan$ListingCreationDate)
+```
+
+Before diving into univariate, bivariate and multivariate analysis. Let's get an
+idea of how Propser has done over the time period of the prvided data. Is the 
+Prosper service growing, stagnant, or decreasing over time?
+
+```{r}
+binwidth = 60*60*24*7  # 1-week bin width (in seconds)
+date_limits = c(ymd(2005, 11, 09), ymd(2014,03,9))
+
+ggplot(data = loan, aes(x = ListingCreationDate)) + 
+  geom_freqpoly(binwidth = binwidth) +
+  scale_x_datetime(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  ylab("weekly loans created")
+```
+
+From the plot above, we see a drop in loan creation starting roughly around the
+3rd quarter of 2008, lasting through quarter 2 in 2009.. what's going on here? 
+
+Some quick research via google and [wikipedia](https://en.wikipedia.org/wiki/Prosper_Marketplace#Cease_and_desist_order) states that in 2008 the SEC found
+Prosper to be in violation of the Securities Act of 1933 and forced Prosper to
+stop issuing loans. After some some rounds of litigation, and restructing of the
+underlying securities (now SEC regulated), Prosper reopened their P2P 
+marketplace to continue issuing loans to borrowers and providing investment 
+opportunities to investors.
+
+For consistency, I will only analyze the data post SEC relaunch (July 2009
+onwards) as it seems the data set itself underwent some structural changes 
+(see variable descriptions) at this point in time. 
+
+```{r}
+loan <- subset(loan, ListingCreationDate >= as.POSIXct("2009-07-01",
+                                                       format="%Y-%m-%d"))
+```
+
+Since mid 2009 we see a significant increase in issued loans via Prosper
+Marketplace. After getting some background infromation on Prosper and a brief 
+look at their history and growth, let's begin with some univariate analysis.
+
+# Univariate Plots Section
+
+As an investor, and in a sense a lender (via Prosper), I am interested in 
+learning about who borrows money using Prosper. I don't think its unreasonable 
+to assume that most borrowers are likely using Prosper as an alternative to 
+traditional banks (perhaps due to a lack of eligibilty?), and therefore may pose
+a risky investment. As a result, I'll start with their credit score as a 
+baseline.
+
+```{r echo=FALSE, Data_Structure}
+# create a estimate of credit score (approx. center of lower and upper range)
+loan$CreditScore <- (loan$CreditScoreRangeLower +
+                       loan$CreditScoreRangeUpper)/2 + 0.5
+
+ggplot(data = loan, aes(x = CreditScore)) +
+  geom_histogram(binwidth = 20) +
+  scale_x_continuous(breaks = seq(600,900,20)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+!["FICO score ranges"](fico-credit-score-range.png)
+
+Based on the range categories above, ([source](https://www.cafecredit.com/credit-score-range)) most borrowers have a "Fair" credit scores. As expected, there are less borrowers with higher credit scores
+(right skewed distribution).
+
+It would also be good to get a sense of how many credit lines borrowers have, as 
+we may want to avoid borrowers with a lot of liabilities.
+
+```{r}
+ggplot(data = loan, aes(x = CurrentCreditLines)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq(0,40,5))
+```
+ Most borrowers on prosper have around 8 lines of credit. Some borrowers have as
+ much as 40 lines of credit! The distribution is right skewed.
+ 
+ Next, I'll get an idea of the incomes, employement status, and debt-to-income 
+ ratios for borrowers.
+```{r echo=FALSE, Univariate_Plots}
+ggplot(data = subset(loan, IncomeVerifiable == 'True'),
+       aes(x = StatedMonthlyIncome*12)) +
+  geom_histogram(binwidth = 10000) +
+  scale_x_continuous(breaks = seq(0, 300000, 10000), limits = c(0,300000)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("Yearly Income")
+
+ggplot(data = subset(loan, IncomeVerifiable == 'True'),
+       aes(x = DebtToIncomeRatio)) +
+  geom_histogram(binwidth = 0.1) +
+  scale_x_continuous(breaks = seq(0,1.5,0.1),limits = c(0,1.5))
+
+table(loan$IncomeVerifiable)
+table(loan$EmploymentStatus)
+summary(loan$DebtToIncomeRatio)
+
+p_employed <- table(loan$EmploymentStatus)[2]/dim(loan)[1]
+p_employed
+```
+
+**Note:** Only the loans where a borrower had a verifiable income are shown in 
+the above plots (91% of all loans). Also, incomes greater than $300k are not 
+shown as the tail becomes imperceptibly thin beyond this value. As expected the 
+distribution of incomes is right skewed.
+
+Most borrowers have a income of around $50,000 and a debt to income ratio of 0.2. 
+Most borrowers are also employed (79%).
+
+
+```{r echo=FALSE, Loan_Status}
+ggplot(data = loan_data, aes(x = LoanStatus)) + 
+  geom_bar() +
+  coord_flip() +
+  scale_y_log10(breaks = c(0,10,100,1000,10000, 50000)) 
+
+table(loan_data$LoanStatus)
+table(loan_data$Term)
+```
+
+Between July 2009 and the last update of this data (03/11/2014), 19501 Prosper 
+loans had been completed, 56576 loans were currently issued, 997 loans were in 
+default (extended period in which borrower has not paid), 5326 had been charged 
+off (money owed, but creditor has given up on collecting = BAD DEBT), 2067 loans
+were past due, and 205 were in final processing.
+
+Based on teh data, Prosper only provides loans at 12, 36, and 60 month terms.
+
+As a starting point, having not being familiar Prosper and their service (for borrowers or investors) it would be interesting to get an idea of the typical rates for borrowers and estimated returns for investors.
+
+```{r echo=FALSE, rates_and_returns}
+ggplot(data = loan_data, aes(x = BorrowerRate)) + 
+  geom_histogram(binwidth = 0.01) +
+  scale_x_continuous(breaks = seq(0, 0.4, 0.01)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) 
+
+ggplot(data = loan_data, aes(x = EstimatedReturn)) + 
+  geom_histogram(binwidth = 0.01)
+
+ggplot(data = loan_data, aes(x = EstimatedLoss)) + 
+  geom_histogram(binwidth = 0.01)
+```
+
+It looks like most borrowers get a rate around 0.15 to 0.2 (median 0.1875), but we see a pretty that a substational amount of borrowers get rates around 0.26. Shockingly, we see that the most common rate for borrowers is 0.32 (32%)!
+
+Estimated returns appear to follow a much more normal distrubution with a median estimated return of 0.09211 (9%). 
+
+We can also see that some loans are actually estimated to **lose** money for their investors. Estimated losses are right skewed, with some estimated losses higher than 30% (0.3), though very rare. Remind me to steer clear of these if I ever invest in Prosper loans. I wonder if there any common traits amongst loans that are estimated to lose money? Let's leave that question for later. 
+
+```{r echo=FALSE, prosper_rating}
+ggplot(data = loan_data, aes(x = ProsperRating..Alpha.)) +
+  geom_bar()
+
+ggplot(data = loan_data, aes(x = ProsperScore)) +
+  geom_bar()
+```
+
+Most loans have an average Prosper Score, with a median of 6 and folliwng a 
+somewhat normal distribution. In contrast, Prosper Ratings are not normally 
+distributed, with a substanial amount of borrowers (~14,000) receiving the 
+highest rating of AA. More info on Prosper [Scores](https://www.prosper.com/plp/general-prosper_score/) and [Ratings](https://www.prosper.com/plp/invest/prosper-ratings/) can be found 
+using the links. Based on the information on Propser's website, Prosper Scores 
+help estimate the the probability of the loan going bad (going 60+ days past 
+due in first year of loan), whereas the Prosper Rating appears to be a more 
+overall description of a 
+
+> **Tip**: Make sure that you leave a blank line between the start / end of
+each code block and the end / start of your Markdown text so that it is
+formatted nicely in the knitted text. Note as well that text on consecutive
+lines is treated as a single space. Make sure you have a blank line between
+your paragraphs so that they too are formatted for easy readability.
+
+# Univariate Analysis
+
+> **Tip**: Now that you've completed your univariate explorations, it's time to
+reflect on and summarize what you've found. Use the questions below to help you
+gather your observations and add your own if you have other thoughts!
+
+### What is the structure of your dataset?
+
+### What is/are the main feature(s) of interest in your dataset?
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+
+### Did you create any new variables from existing variables in the dataset?
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+
+
+# Bivariate Plots Section
+
+> **Tip**: Based on what you saw in the univariate plots, what relationships
+between variables might be interesting to look at in this section? Don't limit
+yourself to relationships between a main output feature and one of the
+supporting variables. Try to look at relationships between supporting variables
+as well.
+
+With some idea of the financial situation of borrowers using Prosper, let's take
+a look at where most of the loans are originating from (by state) and what the 
+loans are being used for.
+
+```{r}
+# download shapefile from web 
+# (comment out 3 lines below after downloading, otherwise code hangs ???)
+# download.file("http://www2.census.gov/geo/tiger/GENZ2017/shp/cb_2017_us_state_500k.zip" , # destfile="states_shape_file.zip")
+# system("unzip states_shape_file.zip")
+
+library(rgdal)
+state_spdf <- readOGR( dsn= getwd() , layer="cb_2017_us_state_500k")
+
+# Look at the info provided with the geospatial object
+head(state_spdf@data)
+summary(state_spdf@data)
+
+# Add loan counts to state_spdf
+```
+
+**Note**: Much of the plotting techniques for the choropleth plot of the US 
+states was adapted from [this example](https://www.r-graph-gallery.com/183-choropleth-map-with-leaflet/) (Source: The R Graph Gallery).
+
+
+
+```{r echo=FALSE, Bivariate_Plots}
+
+```
+
+# Bivariate Analysis
+
+> **Tip**: As before, summarize what you found in your bivariate explorations
+here. Use the questions below to guide your discussion.
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the dataset?
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+
+### What was the strongest relationship you found?
+
+
+# Multivariate Plots Section
+
+> **Tip**: Now it's time to put everything together. Based on what you found in
+the bivariate plots section, create a few multivariate plots to investigate
+more complex interactions between variables. Make sure that the plots that you
+create here are justified by the plots you explored in the previous section. If
+you plan on creating any mathematical models, this is the section where you
+will do that.
+
+```{r echo=FALSE, Multivariate_Plots}
+
+```
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+
+### Were there any interesting or surprising interactions between features?
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the \
+strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+> **Tip**: You've done a lot of exploration and have built up an understanding
+of the structure of and relationships between the variables in your dataset.
+Here, you will select three plots from all of your previous exploration to
+present here as a summary of some of your most interesting findings. Make sure
+that you have refined your selected plots for good titling, axis labels (with
+units), and good aesthetic choices (e.g. color, transparency). After each plot,
+make sure you justify why you chose each plot by describing what it shows.
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+
+```
+
+### Description One
+
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+
+```
+
+### Description Two
+
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+
+```
+
+### Description Three
+
+------
+
+# Reflection
+
+> **Tip**: Here's the final step! Reflect on the exploration you performed and
+the insights you found. What were some of the struggles that you went through?
+What went well? What was surprising? Make sure you include an insight into
+future work that could be done with the dataset.
+
+> **Tip**: Don't forget to remove this, and the other **Tip** sections before
+saving your final work and knitting the final report!

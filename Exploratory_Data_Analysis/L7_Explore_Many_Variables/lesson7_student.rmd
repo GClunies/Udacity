@@ -155,7 +155,7 @@ Notes:
 ggplot(data = subset(pf, !is.na(year_joined.bucket)),
        aes(x = age, y = friend_count)) +
   geom_line(aes(color = year_joined.bucket), stat = 'summary', fun.y = mean) +
-  geom_line(data = pf.fc_by_age_gender, aes(x = age, y = median_friend_count), linetype=3)
+  geom_line(data = pf.fc_by_age_gender, aes(x = age, y = median_friend_count), linetype=2)
 ```
 
 ***
@@ -164,7 +164,7 @@ ggplot(data = subset(pf, !is.na(year_joined.bucket)),
 Notes:
 
 ```{r Friending Rate}
-
+with(subset(pf, tenure >=1), summary(friend_count/tenure))
 ```
 
 ***
@@ -177,7 +177,11 @@ What is the median friend rate?
 What is the maximum friend rate?
 
 ```{r Friendships Initiated}
+library(zoo)
 
+ggplot(data = subset(pf, tenure >= 1 ),
+       aes(x = tenure, y = friendships_initiated/tenure)) +
+  geom_line(aes(color = year_joined.bucket), stat = 'summary', fun.y = mean)
 ```
 
 ***
@@ -189,9 +193,7 @@ Notes:
 
 ggplot(aes(x = tenure, y = friendships_initiated / tenure),
        data = subset(pf, tenure >= 1)) +
-  geom_line(aes(color = year_joined.bucket),
-            stat = 'summary',
-            fun.y = mean)
+  geom_smooth(aes(color = year_joined.bucket))
 
 ggplot(aes(x = 7 * round(tenure / 7), y = friendships_initiated / tenure),
        data = subset(pf, tenure > 0)) +
@@ -221,15 +223,21 @@ Notes:
 ***
 
 ### Introducing the Yogurt Data Set
-Notes:
 
-***
 
 ### Histograms Revisited
 Notes:
 
 ```{r Histograms Revisited}
+yo <- read.csv('yogurt.csv')
+# str(yo)
 
+# Change id from and int to a factor
+yo$id <- factor(yo$id)
+str(yo)
+
+ggplot(data = yo, aes(x = price)) +
+  geom_histogram()
 ```
 
 ***
@@ -238,7 +246,13 @@ Notes:
 Notes:
 
 ```{r Number of Purchases}
+summary(yo)
+length(unique(yo$price))
+table(yo$price)
 
+yo <- transform(yo, all.purchases = strawberry + blueberry + pina.colada + plain + mixed.berry)
+
+summary(yo$all.purchases)
 ```
 
 ***
@@ -247,7 +261,8 @@ Notes:
 Notes:
 
 ```{r Prices over Time}
-
+ggplot(data = yo, aes(x = time, y = price)) +
+  geom_jitter(alpha = 1/10, height = 0.5)
 ```
 
 ***
@@ -260,8 +275,30 @@ Notes:
 ### Looking at Samples of Households
 
 ```{r Looking at Sample of Households}
+set.seed(4230)
 
+sample.ids <- sample(levels(yo$id), 16)
+
+ggplot(data = subset(yo, id %in% sample.ids),
+       aes(x = time, y = price)) +
+  geom_point(aes(size = all.purchases), shape = 1) + 
+  geom_line() +
+  facet_wrap(~id) 
 ```
+
+# same analysis using a different seed (will sample 16 different household ids)
+```{r}
+set.seed(1234)
+
+sample.ids <- sample(levels(yo$id), 16)
+
+ggplot(data = subset(yo, id %in% sample.ids),
+       aes(x = time, y = price)) +
+  geom_point(aes(size = all.purchases), shape = 1) + 
+  geom_line() +
+  facet_wrap(~id) 
+```
+
 
 ***
 
@@ -277,8 +314,21 @@ Notes:
 
 ### Scatterplot Matrix
 Notes:
+```{r}
+# install.packages("GGally")
+library(GGally)
+theme_set(theme_minimal(20))
 
-***
+# set seed for reproducible results
+set.seed(1836)
+pf_subset <- pf[, c(2:15)]
+names(pf_subset)
+ggpairs(pf_subset[sample.int(nrow(pf_subset), 1000), ], axisLabels = 'internal')
+
+
+```
+
+
 
 ### Even More Variables
 Notes:
@@ -294,6 +344,7 @@ colnames(nci) <- c(1:64)
 ```
 
 ```{r}
+library(reshape2)
 nci.long.samp <- melt(as.matrix(nci[1:200,]))
 names(nci.long.samp) <- c("gene", "case", "value")
 head(nci.long.samp)
