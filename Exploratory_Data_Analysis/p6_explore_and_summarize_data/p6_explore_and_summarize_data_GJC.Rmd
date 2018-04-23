@@ -17,10 +17,10 @@ a margin line to help you keep track of this guideline!
 
 This report explores a data set containing 113,937 [Prosper](https://www.prosper.com/home/) 
 loans. Prosper specializes is peer-to-peer (P2P) lending, allowing everyday 
-people to both acquire and invest/fund loans in amounts ranging from \$2,000 to 
+people to both acquire and invest in loans for amounts ranging from \$2,000 to 
 $35,000. Prosper provides data to both potential borrowers and investors about 
-their loans, with borrowers focused on the rate they will get on the loan, and 
-investors focuesed on the estimated return on investment.
+their loans, with borrower data focused on the rate they will get on the loan, 
+and investor data focuesed on the estimated return on investment.
 
 The data set has 81 variables associated with each loan, such as: loan amount, 
 borrower rate (i.e., interest rate), loan status, borrower income, borrower
@@ -93,7 +93,7 @@ opportunities to investors.
 
 For consistency, I will only analyze the data post SEC relaunch (July 2009
 onwards) as it seems the data set itself underwent some structural changes 
-(see variable descriptions) at this point in time. 
+(see variable descriptions) during the litigation phase. 
 
 ```{r}
 loan <- subset(loan, ListingCreationDate >= as.POSIXct("2009-07-01",
@@ -101,7 +101,10 @@ loan <- subset(loan, ListingCreationDate >= as.POSIXct("2009-07-01",
 ```
 
 Since mid 2009 we see a significant increase in issued loans via Prosper
-Marketplace. After getting some background infromation on Prosper and a brief 
+Marketplace. We also see what looks to be an increase in volatility in the 
+number of weekly loans created. I wonder what is driving this volatility?
+
+After getting some background infromation on Prosper and a brief 
 look at their history and growth, let's begin with some univariate analysis.
 
 # Univariate Plots Section
@@ -110,8 +113,8 @@ As an investor, and in a sense a lender (via Prosper), I am interested in
 learning about who borrows money using Prosper. I don't think its unreasonable 
 to assume that most borrowers are likely using Prosper as an alternative to 
 traditional banks (perhaps due to a lack of eligibilty?), and therefore may pose
-a risky investment. As a result, I'll start with their credit score as a 
-baseline.
+a risky investment. As a result, I'll start with their credit score of borrowers
+as a baseline. 
 
 ```{r echo=FALSE, Data_Structure}
 # create a estimate of credit score (approx. center of lower and upper range)
@@ -124,10 +127,12 @@ ggplot(data = loan, aes(x = CreditScore)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-!["FICO score ranges"](fico-credit-score-range.png)
+![Source: https://www.cafecredit.com/credit-score-range](fico-credit-score-range.png)
 
-Based on the range categories above, ([source](https://www.cafecredit.com/credit-score-range)) most borrowers have a "Fair" credit scores. As expected, there are less borrowers with higher credit scores
-(right skewed distribution).
+I have included a figure for showing the corresponding FICO categories above as
+well. Based on the ranges, it appears most borrowers have a "Fair" credit score.
+As expected, there are less borrowers with higher credit scores (right skewed 
+distribution).
 
 It would also be good to get a sense of how many credit lines borrowers have, as 
 we may want to avoid borrowers with a lot of liabilities.
@@ -142,6 +147,7 @@ ggplot(data = loan, aes(x = CurrentCreditLines)) +
  
  Next, I'll get an idea of the incomes, employement status, and debt-to-income 
  ratios for borrowers.
+ 
 ```{r echo=FALSE, Univariate_Plots}
 ggplot(data = subset(loan, IncomeVerifiable == 'True'),
        aes(x = StatedMonthlyIncome*12)) +
@@ -168,65 +174,116 @@ the above plots (91% of all loans). Also, incomes greater than $300k are not
 shown as the tail becomes imperceptibly thin beyond this value. As expected the 
 distribution of incomes is right skewed.
 
-Most borrowers have a income of around $50,000 and a debt to income ratio of 0.2. 
-Most borrowers are also employed (79%).
+Most borrowers have a income of around $50,000 and a debt to income ratio of 
+0.2. Most borrowers are also employed (79%).
 
+It might also be helpful to see the status of the loans issued using Prosper 
+since 2009 to get an idea of how they are performing in a general sense. Are 
+a large number of borrowers overdue on their loan payments? Have they defaulted?
+How many loans have been written off? How many were succesfully completed?
 
 ```{r echo=FALSE, Loan_Status}
-ggplot(data = loan_data, aes(x = LoanStatus)) + 
+ggplot(data = loan, aes(x = LoanStatus)) + 
   geom_bar() +
   coord_flip() +
   scale_y_log10(breaks = c(0,10,100,1000,10000, 50000)) 
 
-table(loan_data$LoanStatus)
-table(loan_data$Term)
+table(loan$LoanStatus)
+table(loan$Term)
 ```
 
-Between July 2009 and the last update of this data (03/11/2014), 19501 Prosper 
+Between July 2009 and the last update of this data (03/11/2014), 19664 Prosper 
 loans had been completed, 56576 loans were currently issued, 997 loans were in 
 default (extended period in which borrower has not paid), 5326 had been charged 
 off (money owed, but creditor has given up on collecting = BAD DEBT), 2067 loans
 were past due, and 205 were in final processing.
 
-Based on teh data, Prosper only provides loans at 12, 36, and 60 month terms.
-
-As a starting point, having not being familiar Prosper and their service (for borrowers or investors) it would be interesting to get an idea of the typical rates for borrowers and estimated returns for investors.
-
-```{r echo=FALSE, rates_and_returns}
-ggplot(data = loan_data, aes(x = BorrowerRate)) + 
-  geom_histogram(binwidth = 0.01) +
-  scale_x_continuous(breaks = seq(0, 0.4, 0.01)) +
-  theme(axis.text.x=element_text(angle=45,hjust=1)) 
-
-ggplot(data = loan_data, aes(x = EstimatedReturn)) + 
-  geom_histogram(binwidth = 0.01)
-
-ggplot(data = loan_data, aes(x = EstimatedLoss)) + 
-  geom_histogram(binwidth = 0.01)
-```
-
-It looks like most borrowers get a rate around 0.15 to 0.2 (median 0.1875), but we see a pretty that a substational amount of borrowers get rates around 0.26. Shockingly, we see that the most common rate for borrowers is 0.32 (32%)!
-
-Estimated returns appear to follow a much more normal distrubution with a median estimated return of 0.09211 (9%). 
-
-We can also see that some loans are actually estimated to **lose** money for their investors. Estimated losses are right skewed, with some estimated losses higher than 30% (0.3), though very rare. Remind me to steer clear of these if I ever invest in Prosper loans. I wonder if there any common traits amongst loans that are estimated to lose money? Let's leave that question for later. 
+Prosper also provides some additional proprietary parameters (Prosper [Scores](https://www.prosper.com/plp/general-prosper_score/) & 
+[Ratings](https://www.prosper.com/plp/invest/prosper-ratings/)) of loan quality to investors. Prosper Scores help estimate the the probability of the loan going bad (going 60+ days past due in first year of loan), whereas the Prosper Rating appears to be a
+more overall description of loan risk. Remember, both are proprietary 
+parameters provided by Prosper to potential investors. I'll take a look at them 
+quickly.
 
 ```{r echo=FALSE, prosper_rating}
-ggplot(data = loan_data, aes(x = ProsperRating..Alpha.)) +
+ggplot(data = loan, aes(x = ProsperRating..Alpha.)) +
   geom_bar()
 
-ggplot(data = loan_data, aes(x = ProsperScore)) +
+ggplot(data = loan, aes(x = ProsperScore)) +
   geom_bar()
 ```
 
 Most loans have an average Prosper Score, with a median of 6 and folliwng a 
 somewhat normal distribution. In contrast, Prosper Ratings are not normally 
 distributed, with a substanial amount of borrowers (~14,000) receiving the 
-highest rating of AA. More info on Prosper [Scores](https://www.prosper.com/plp/general-prosper_score/) and [Ratings](https://www.prosper.com/plp/invest/prosper-ratings/) can be found 
-using the links. Based on the information on Propser's website, Prosper Scores 
-help estimate the the probability of the loan going bad (going 60+ days past 
-due in first year of loan), whereas the Prosper Rating appears to be a more 
-overall description of a 
+highest rating of AA. 
+
+Next, I will take a look at the rates most borrowers get, and the estimated 
+returns and losses for investors.
+```{r echo=FALSE, rates_and_returns}
+ggplot(data = loan, aes(x = BorrowerRate)) + 
+  geom_histogram(binwidth = 0.01) +
+  scale_x_continuous(breaks = seq(0, 0.4, 0.01)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) 
+
+ggplot(data = loan, aes(x = EstimatedReturn)) + 
+  geom_histogram(binwidth = 0.01)
+
+summary(loan$EstimatedReturn)
+```
+
+It looks like most borrowers get a rate around 0.15 to 0.2 (median 0.1875), but 
+we can see that a substational amount of borrowers get rates around 0.26. This 
+distrubution is definitely not normal. Shockingly, we see that the most common 
+rate for borrowers is 0.32 (32%)! 
+
+Estimated returns appear to follow a much more normal distrubution with a median
+estimated return of 0.09211 (9%). A very few number of loans are actually
+predicted to provide negative returns from the outset. Steer clear of these!
+
+Although the estimated return for a loan is certainly information I would like 
+when trying to choose one loan over the other. I think it is worth taking a look
+at actual loan performance. Unfortuantely, Prosper does not make this 
+information available so we need to do a bit of work to tease this out of the 
+data set.
+
+I will use the following formula to calculate the *Actual Return* also
+known as the cumalative return, $R_c$ ([Source])(https://www.fool.com/knowledge-center/annualized-return-vs-cumulative-return.aspx:
+
+$$R_c = (LP_{CustomerPrincipalPayments} + LP_{InterestandFees} + 
+LP_{CollectionFees} - P)/ P$$
+
+Where `P` is the loan principal (or the LoanOriginalAmount)
+
+Obviously, we can only assess the loans that are completed (i.e., have a closing
+date ) for this information to be a true measure of actual loan returns.
+
+```{r}
+loan_completed <- loan %>% 
+  filter(!is.na(ClosedDate))
+
+loan_completed$ActualReturn <- with(loan_completed, 
+  (LP_CustomerPrincipalPayments + LP_InterestandFees +
+     LP_CollectionFees - LoanOriginalAmount)/LoanOriginalAmount)
+
+x <- 0
+ggplot(data = loan_completed, aes(x = ActualReturn)) +
+  geom_histogram(breaks = seq(-1.0,1.0,0.02), fill="blue", color="black") +
+  geom_vline(xintercept = 0, linewidth = 4, linetype = 2, color = "red")
+
+# summarize loans that make money
+summary(subset(loan_completed, ActualReturn >= 0)$ActualReturn)
+
+# summarize loans that lose money
+summary(subset(loan_completed, ActualReturn < 0)$ActualReturn)
+```
+
+Now this is some useful information! We can see that most loans have positive 
+returns, which is expected otherwise Prosper would not be in business long! 
+However, there are definitely loans that lose money for investors as well.
+Curiously, when a loan turns out to be a losing bet it more often than not tends
+to lose **BIG**. Both the positive and negative return loans are right skewed in
+their resepctive distributions (split by red dashed line).
+
 
 > **Tip**: Make sure that you leave a blank line between the start / end of
 each code block and the end / start of your Markdown text so that it is
@@ -242,16 +299,67 @@ gather your observations and add your own if you have other thoughts!
 
 ### What is the structure of your dataset?
 
+The original structure of the data set is 113937 row (one for each loan) by 83
+variables per loan.
+
+Some cleaning was done to allow for easy handling of loan date information 
+(convert to POSIXct). As stated earlier, only loans after 2009 are used in 
+this analysis to ensure structural consistency of the data set.
+
+In addition some variables were added to the data set which now contains records
+for 84,853 loans (rows) with 82 variables for each loan (columns). 
+
+A 83rd variable was also created, but only for the completed loans, which is 
+stored in a separate data frame called `loan_completed`.
+
 ### What is/are the main feature(s) of interest in your dataset?
 
-### What other features in the dataset do you think will help support your \
-investigation into your feature(s) of interest?
+The main features of the dataset include:
+- Loan date/timing information (e.g., start date, end date)
+- Borrower information (e.g., credit score, income, etc.)
+- Loan quality informmation (e.g., Prosper Score, Prosper Rating)
+- Estimated loan perfromance information for investors (e.g., estimated returns)
+
+
+### What other features in the dataset do you think will help support your analysis?
+
+I think the geogrpahic information will be interesting to investigate against 
+the other variables. Do loans from certain geographies perform
+better than others? Perhaps a similar analysis could be done using loan listing
+categories or the borrowers occupation - are certain careers associated with more
+reliable borrowers?
 
 ### Did you create any new variables from existing variables in the dataset?
 
+Two variables were created to aid in this analysis:
+1. CreditScore - midpoint of the credit range the borrower was classified to be 
+   within
+2. ActualReturns - calculated return for all closed out loans. 
+
+These variables will help later during the bivariate and multivariate analysis. 
+Hopefully, they can be used to some light on the type of loans that result in 
+higher returns, and evaluate how well Prosper's rating and scoring parameter 
+represent true loan perfromance.
+
+
 ### Of the features you investigated, were there any unusual distributions? \
-Did you perform any operations on the data to tidy, adjust, or change the form \
-of the data? If so, why did you do this?
+
+First, looking at weekly loans created was surprising as this shed some light on
+the growth of the Propser P2P marketplace and forced me to further investigate
+Prosper's business model. Knowing that the Propser marketplace is regulated by 
+the SEC does provide some more confididence that there is some oversight into 
+the business as a whole. Though this does not mean you can't lose money!.
+
+Borrower rates showed an unusual distribution. Though partially right skewed, 
+there are some clear spikes at higher rates. This suggests that Prosoper 
+thinks most of it's borrowers are a higher investment risk. Strangely, we don't 
+see a similar distibution in the Prosper Rating and Score of loans.
+
+I was also surpised by the distribution of the negtaive ActualReturns 
+(laons that lost money) were right skewed, which suggests that when borrowers 
+stop making loan payments they tend to do so early on in the loan cycle, which 
+leads to a higher loss as a percentage of the original loan value and investment
+by investors.
 
 
 # Bivariate Plots Section
@@ -273,19 +381,50 @@ loans are being used for.
 # system("unzip states_shape_file.zip")
 
 library(rgdal)
+library(leaflet)
 state_spdf <- readOGR( dsn= getwd() , layer="cb_2017_us_state_500k")
 
 # Look at the info provided with the geospatial object
 head(state_spdf@data)
 summary(state_spdf@data)
 
+# summarise data by state
+loan.count_by_state <- loan %>% 
+  group_by(BorrowerState) %>% 
+  summarise(n_loans = n())
+
 # Add loan counts to state_spdf
+state_spdf <- merge(state_spdf, loan.count_by_state, by.x = "STUSPS", by.y = "BorrowerState")
+
+# Create a color palette with handmade bins.
+mybins <- c(seq(0,10000,1000), Inf)
+mypalette <- colorBin( palette="YlOrBr", domain=state_spdf@data$n_loans, na.color="transparent", bins=mybins)
+
+# Prepar the text for the tooltip:
+mytext=paste("State: ", state_spdf@data$STUSPS,"<br/>", 
+             "No. of Loans: ", state_spdf@data$n_loans, "<br/>",
+             sep=""
+             ) %>% 
+  lapply(htmltools::HTML)
+
+leaflet(state_spdf) %>% 
+  addTiles()  %>% 
+  setView( lat=40, lng=-99 , zoom=3) %>%
+  addPolygons( 
+    fillColor = ~mypalette(n_loans), stroke=TRUE, fillOpacity = 0.9, color="white", weight=0.3,
+    label = mytext,
+    labelOptions = labelOptions( style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "13px", direction = "auto")
+    ) %>%
+  addLegend( pal=mypalette,
+             values=~n_loans,
+             opacity=0.9,
+             title = "No. of Loans",
+             position = "bottomleft" )
+
 ```
 
 **Note**: Much of the plotting techniques for the choropleth plot of the US 
 states was adapted from [this example](https://www.r-graph-gallery.com/183-choropleth-map-with-leaflet/) (Source: The R Graph Gallery).
-
-
 
 ```{r echo=FALSE, Bivariate_Plots}
 
