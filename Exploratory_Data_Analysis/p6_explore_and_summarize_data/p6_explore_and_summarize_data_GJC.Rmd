@@ -38,11 +38,13 @@ library(scales)
 library(knitr)
 
 # Greg's Dell 3520 (work)
-setwd("C:/Users/clu73519/Repos/Udacity/Exploratory_Data_Analysis/p6_explore_and_summarize_data")
+setwd(paste("C:/Users/clu73519/Repos/Udacity/",
+            "Exploratory_Data_Analysis/p6_explore_and_summarize_data", sep=""))
 
 
 # Greg's macbook
-# setwd("/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/p6_explore_and_summarize_data")
+# setwd(paste("/Users/GregoryClunies/Repos/Udacity/Exploratory_Data_Analysis/",
+#             "p6_explore_and_summarize_data", sep=""))
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -66,7 +68,7 @@ setnames(loan_orig, old = c("ProsperRating..numeric.", "ProsperRating..Alpha.",
         new = c("ProsperRatingNumeric", "ProsperRatingAlpha", "ListingCategory")
         )
 
-library(dplyr)  # make sure dplyr functions are default, not data.table functions
+library(dplyr)  # make sure dplyr functions are default, not data.table function
 
 # convert the date attributes to POSIXct format to handle dates
 loan_orig$ListingCreationDate <- ymd_hms(loan_orig$ListingCreationDate)
@@ -157,7 +159,8 @@ ggplot(data = loan, aes(x = CurrentCreditLines)) +
   geom_histogram(binwidth = 1, color = "black", fill = "darkorange") +
   scale_x_continuous(breaks = seq(0,40,5))
 ```
- Most borrowers on prosper have around 8 lines of credit. Some borrowers have as
+
+Most borrowers on prosper have around 8 lines of credit. Some borrowers have as
  much as 40 lines of credit! Unsurprisingly, the distribution is right skewed.
  
  Next, I'll get an idea of the incomes, employement status, and debt-to-income 
@@ -387,7 +390,7 @@ loans are being used for.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # download shapefile from web 
-# comment out 2 lines below after downloading, otherwise code hangs, since file already in working directory
+# comment out 2 lines below after downloading, otherwise code hangs
 # download.file("http://www2.census.gov/geo/tiger/GENZ2017/shp/cb_2017_us_state_500k.zip", destfile="states_shape_file.zip")
 # system("unzip states_shape_file.zip")
 
@@ -515,7 +518,8 @@ loan.count_by_term_status<- df_loan %>%
   summarise(n_loans = n()) %>%
   mutate(freq = n_loans / sum(n_loans))
 
-kable(loan.count_by_term_status, caption = "Loan Term vs. Loan Status Summary Table")
+kable(loan.count_by_term_status, 
+      caption = "Loan Term vs. Loan Status Summary Table")
 ```
 
 We see that based on the historical data (remember, we are only reviewing 
@@ -593,7 +597,8 @@ time?
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-df_loan$Actual_less_Estimated_Return <- df_loan$ActualReturn - df_loan$EstimatedReturn
+df_loan$Actual_less_Estimated_Return <- df_loan$ActualReturn - 
+  df_loan$EstimatedReturn
 
 
 binwidth = 60*60*24*7  # 1-week bin width (in seconds)
@@ -878,7 +883,8 @@ g_cor_BorrowerRate <- subset(df_loan,!is.na(cut(BorrowerRate,seq(0,0.3,0.1)))) %
   group_by(cut(BorrowerRate,seq(0,0.3,0.1))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_BorrowerRate, caption = "Estimated vs Actual Return - by Borrower Rate")
+kable(g_cor_BorrowerRate, 
+      caption = "Estimated vs Actual Return - by Borrower Rate")
 
 #Prosper Rating (Alpha)
 ggplot(data = df_loan, aes(x = EstimatedReturn,
@@ -895,7 +901,8 @@ g_cor_ProsperRatingAlpha <- df_loan %>%
   group_by(ProsperRatingAlpha) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_ProsperRatingAlpha, caption = "Estimated vs Actual Return - by Borrower Rate")
+kable(g_cor_ProsperRatingAlpha, 
+      caption = "Estimated vs Actual Return - by Borrower Rate")
 
 
 #Prosper Score
@@ -913,7 +920,8 @@ g_cor_ProsperScore <- df_loan %>%
   group_by(cut(ProsperScore,seq(0,11,1))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_ProsperScore, caption = "Estimated vs Actual Return - by Prosper Score")
+kable(g_cor_ProsperScore, 
+      caption = "Estimated vs Actual Return - by Prosper Score")
 
 
 #Borrower State
@@ -931,7 +939,8 @@ g_cor_BorrowerState <- df_loan %>%
   group_by(BorrowerState) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_BorrowerState, caption = "Estimated vs Actual Return - by Borrower State")
+kable(g_cor_BorrowerState, 
+      caption = "Estimated vs Actual Return - by Borrower State")
 
 
 # Employment Status
@@ -949,7 +958,8 @@ g_cor_EmploymentStatus <- df_loan %>%
   group_by(EmploymentStatus) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_EmploymentStatus, caption = "Estimated vs Actual Return - by Employment Status")
+kable(g_cor_EmploymentStatus, 
+      caption = "Estimated vs Actual Return - by Employment Status")
 
 
 
@@ -969,7 +979,8 @@ g_cor_ListingCategory <- subset(df_loan, !is.na(ListingCategory)) %>%
   group_by(ListingCategory) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_ListingCategory, caption = "Estimated vs Actual Return - by Listing Category")
+kable(g_cor_ListingCategory, 
+      caption = "Estimated vs Actual Return - by Listing Category")
 
 
 # Credit Score
@@ -987,7 +998,8 @@ g_cor_CreditScore <- subset(df_loan, !is.na(CreditScore)) %>%
   group_by(cut(CreditScore, seq(600, 900, 50))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_CreditScore, caption = "Estimated vs Actual Return - by Credit Score")
+kable(g_cor_CreditScore, 
+      caption = "Estimated vs Actual Return - by Credit Score")
 
 
 # Debt to Income Ratio
@@ -1007,7 +1019,8 @@ g_cor_DebtToIncomeRatio <- subset(df_loan, !is.na(cut(DebtToIncomeRatio,
   group_by(cut(CreditScore, seq(600, 900, 50))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_DebtToIncomeRatio, caption = "Estimated vs Actual Return - by Debt to Income Ratio")
+kable(g_cor_DebtToIncomeRatio, 
+      caption = "Estimated vs Actual Return - by Debt to Income Ratio")
 
 
 # Monthly Loan Payment
@@ -1028,7 +1041,8 @@ g_cor_MonthlyLoanPayment <- subset(df_loan, !is.na(cut(MonthlyLoanPayment,
   group_by(cut(MonthlyLoanPayment, seq(0, 1000, 200))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_MonthlyLoanPayment, caption = "Estimated vs Actual Return - by Monthly Loan Payment")
+kable(g_cor_MonthlyLoanPayment, 
+      caption = "Estimated vs Actual Return - by Monthly Loan Payment")
 
 ```
 
@@ -1049,7 +1063,8 @@ Interestingly, there is one sub-group that has a trendline entirely above the
 Listing Category 0 ("loan purpose not listed"). 
 
 ```{r}
-kable(subset(df_loan, ListingCategory == 0 ), caption = "Loans with no Listing Category listed")
+kable(subset(df_loan, ListingCategory == 0 ), 
+      caption = "Loans with no Listing Category listed")
 ```
 
 Although this sub-group of loans seems like the best investment possibility 
@@ -1166,7 +1181,8 @@ g_cor_BorrowerRate <- subset(df_loan,!is.na(cut(BorrowerRate,seq(0,0.3,0.1)))) %
   group_by(cut(BorrowerRate,seq(0,0.3,0.1))) %>% 
   summarize(correlation = cor.test(EstimatedReturn, ActualReturn)$estimate)
 
-kable(g_cor_BorrowerRate, col.names = c("Borrower Rate", "Correlation"), caption = "Correlation by Borrower Rate")
+kable(g_cor_BorrowerRate, col.names = c("Borrower Rate", "Correlation"), 
+      caption = "Correlation by Borrower Rate")
 ```
 
 ### Description Three
