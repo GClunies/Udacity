@@ -16,7 +16,7 @@ library(ggplot2)
 # bar plot by age.range
 qplot(data = reddit, x = age.range)
 
-# Set the order of factor levels fro age.range
+# Set the order of factor levels for age.range
 reddit$age.range <- ordered(reddit$age.range, levels = c("Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65 or Above"))
 levels(reddit$age.range)
 
